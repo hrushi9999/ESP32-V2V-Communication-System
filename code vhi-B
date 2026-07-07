@@ -1,0 +1,71 @@
+#include <esp_now.h>
+#include <WiFi.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH,SCREEN_HEIGHT,&Wire,-1);
+#define RED_LED      23
+#define YELLOW_LED   19
+#define GREEN_LED    18
+#define BUZZER       5
+typedef struct struct_message{
+  char message[32];
+}struct_message;
+struct_message incomingData;
+void showMessage(String msg)
+{
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.setTextSize(2);
+  display.println(msg);
+  display.display();
+}
+void warning()
+{
+  digitalWrite(RED_LED,HIGH);
+  digitalWrite(YELLOW_LED,HIGH);
+  tone(BUZZER,1000);
+  delay(800);
+  noTone(BUZZER);
+  digitalWrite(RED_LED,LOW);
+  digitalWrite(YELLOW_LED,LOW);
+}
+void OnDataRecv(const esp_now_recv_info *info,const uint8_t *incomingDataBytes,int len)
+{
+  memcpy(&incomingData,incomingDataBytes,sizeof(incomingData));
+  Serial.print("Received: ");
+  Serial.println(incomingData.message);
+  showMessage(incomingData.message);
+  warning();
+}
+void setup()
+{
+  Serial.begin(115200);
+  pinMode(RED_LED,OUTPUT);
+  pinMode(YELLOW_LED,OUTPUT);
+  pinMode(GREEN_LED,OUTPUT);
+  pinMode(BUZZER,OUTPUT);
+  Wire.begin(21,22);
+  if(!display.begin(SSD1306_SWITCHCAPVCC,0x3C))
+  {
+    Serial.println("OLED Failed");
+    while(true);
+  }
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setCursor(0,0);
+  display.println("Waiting...");
+  display.display();
+  WiFi.mode(WIFI_STA);
+  if(esp_now_init()!=ESP_OK)
+  {
+    Serial.println("ESP NOW Failed");
+    return;
+  }
+  esp_now_register_recv_cb(OnDataRecv);
+}
+void loop()
+{
+}
