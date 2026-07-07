@@ -1,0 +1,69 @@
+#include <esp_now.h>
+#include <WiFi.h>
+#define BRAKE_BUTTON      13
+#define HAZARD_BUTTON     12
+#define LEFT_BUTTON       14
+#define RIGHT_BUTTON      27
+#define EMERGENCY_BUTTON  26
+typedef struct struct_message{
+  char message[32];
+}struct_message;
+struct_message data;
+uint8_t receiverAddress[] = {0x24,0x6F,0x28,0xAA,0xBB,0xCC};
+// Replace with the MAC address of Vehicle_B ESP32
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
+{
+  Serial.print("Send Status: ");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success" : "Failed");
+}
+void setup()
+{
+  Serial.begin(115200);
+  pinMode(BRAKE_BUTTON,INPUT_PULLUP);
+  pinMode(HAZARD_BUTTON,INPUT_PULLUP);
+  pinMode(LEFT_BUTTON,INPUT_PULLUP);
+  pinMode(RIGHT_BUTTON,INPUT_PULLUP);
+  pinMode(EMERGENCY_BUTTON,INPUT_PULLUP);
+  WiFi.mode(WIFI_STA);
+  if(esp_now_init()!=ESP_OK)
+  {
+    Serial.println("ESP-NOW Init Failed");
+    return;
+  }
+  esp_now_register_send_cb(OnDataSent);
+  esp_now_peer_info_t peerInfo={};
+  memcpy(peerInfo.peer_addr,receiverAddress,6);
+  peerInfo.channel=0;
+  peerInfo.encrypt=false;
+  esp_now_add_peer(&peerInfo);
+}
+void sendMessage(const char *text)
+{
+  strcpy(data.message,text);
+  esp_now_send(receiverAddress,(uint8_t *)&data,sizeof(data));
+  Serial.println(text);
+  delay(300);
+}
+void loop()
+{
+  if(digitalRead(BRAKE_BUTTON)==LOW)
+  {
+    sendMessage("BRAKE");
+  }
+  if(digitalRead(HAZARD_BUTTON)==LOW)
+  {
+    sendMessage("HAZARD");
+  }
+  if(digitalRead(LEFT_BUTTON)==LOW)
+  {
+    sendMessage("LEFT TURN");
+  }
+  if(digitalRead(RIGHT_BUTTON)==LOW)
+  {
+    sendMessage("RIGHT TURN");
+  }
+  if(digitalRead(EMERGENCY_BUTTON)==LOW)
+  {
+    sendMessage("EMERGENCY");
+  }
+}
